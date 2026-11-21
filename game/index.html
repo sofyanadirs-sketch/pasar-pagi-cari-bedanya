@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Pasar Pagi — Cari Bedanya</title>
+<style>
+  :root { --ink: #3a2c14; --muted: #7a6a45; --paper: #fdf6e3; --gold: #ffb700; --red: #d23c2e; --blue: #2b6cb0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #f3e5c0; color: var(--ink); font-family: system-ui, sans-serif; }
+  body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+  header { width: 1240px; max-width: 96vw; display: flex; align-items: center; gap: 14px; padding: 12px 4px 8px; flex-wrap: wrap; }
+  header h1 { font-size: 24px; margin: 0; letter-spacing: 0.5px; }
+  header h1 small { display: block; font-size: 13px; color: var(--muted); font-weight: 400; }
+  .hud { margin-left: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .pill { background: var(--paper); border: 2px solid #d9c48a; border-radius: 999px; padding: 6px 14px; font-weight: 700; font-size: 15px; white-space: nowrap; }
+  .pill.left { background: #ffe9a8; border-color: var(--gold); }
+  .pill b { font-variant-numeric: tabular-nums; }
+  button { cursor: pointer; font-family: inherit; }
+  .btn { background: var(--paper); border: 2px solid #8a6d3b; border-radius: 10px; padding: 7px 14px; font-weight: 700; font-size: 14px; color: var(--ink); }
+  .btn:hover { background: #fffbe8; }
+  .btn.on { background: var(--gold); border-color: #b97d00; }
+  .btn.primary { background: var(--gold); border-color: #b97d00; }
+  #stage { position: relative; width: 1240px; max-width: 96vw; }
+  #game { display: block; width: 100%; height: auto; border: 3px solid #8a6d3b; border-radius: 12px; background: var(--paper); cursor: crosshair; }
+  #game.shake { animation: shake 0.25s; }
+  @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+  #lens { position: absolute; width: 160px; height: 160px; pointer-events: none; border-radius: 50%; z-index: 5; }
+  #toast { min-height: 26px; margin: 6px 0 0; font-weight: 700; font-size: 16px; color: #2f5d3a; opacity: 0; transition: opacity 0.15s; text-align: center; }
+  #toast.show { opacity: 1; }
+  footer { width: 1240px; max-width: 96vw; padding: 4px; color: var(--muted); font-size: 13px; text-align: center; }
+  footer kbd { background: var(--paper); border: 1px solid #c9b478; border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; font-family: inherit; }
+  .overlay { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(253, 246, 227, 0.94); border-radius: 12px; padding: 24px; text-align: center; }
+  .overlay.hidden, .hidden { display: none !important; }
+  .overlay h2 { margin: 0; font-size: 30px; }
+  .overlay p { margin: 0; max-width: 640px; font-size: 15px; line-height: 1.5; }
+  #scene-list { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+  .scene-card { width: 250px; text-align: left; background: #fffbe8; border: 3px solid #d9c48a; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+  .scene-card:hover, .scene-card.chosen { border-color: var(--gold); background: #fff3c4; }
+  .scene-card b { font-size: 17px; }
+  .scene-card span { font-size: 13px; color: var(--muted); line-height: 1.4; }
+  .scene-card em { font-size: 12px; color: var(--blue); font-style: normal; font-weight: 700; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  #done-body { font-size: 16px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Pasar Pagi — Cari Bedanya<small id="scene-title">Pilih scene untuk mulai</small></h1>
+  <div class="hud">
+    <span class="pill">Waktu <b id="hud-time">00:00</b></span>
+    <span class="pill">Skor <b id="hud-score">Rp0</b></span>
+    <span class="pill left"><b id="hud-left">Sisa 7 dari 7</b></span>
+    <span class="pill"><b id="hud-hints">Hint: 3 (H)</b></span>
+    <button class="btn" id="btn-hint" type="button">Hint (H)</button>
+    <button class="btn" id="btn-lens" type="button">Kaca Pembesar (M)</button>
+    <button class="btn" id="btn-restart" type="button">Ulangi (R)</button>
+    <button class="btn" id="btn-menu" type="button">Menu (Esc)</button>
+  </div>
+</header>
+
+<div id="stage">
+  <canvas id="game" aria-label="Pasar Pagi Cari Bedanya: dua gambar berdampingan, klik perbedaan yang kamu temukan"></canvas>
+  <canvas id="lens" class="hidden" width="160" height="160"></canvas>
+
+  <div class="overlay" id="overlay-menu">
+    <h2>Pasar Pagi — Cari Bedanya</h2>
+    <p>Tiga pagi yang terang di Indonesia: pasar, warung kopi, dan stasiun. Setiap scene punya
+      <b>dua gambar berdampingan</b> yang hampir sama — ada <b>7 perbedaan</b> di gambar kanan.
+      Klik perbedaannya, atau gerakkan kursor dengan keyboard. Setiap temuan <b>+Rp5.000</b>,
+      klik salah −Rp1.000, hint −Rp2.000. Selesaikan satu scene sebelum lanjut ke berikutnya!</p>
+    <div id="scene-list"></div>
+    <p>Main dengan mouse atau keyboard: <kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> gerakkan kursor,
+      <kbd>Enter</kbd> tandai, <kbd>H</kbd> hint, <kbd>M</kbd> kaca pembesar, <kbd>R</kbd> ulangi,
+      <kbd>Esc</kbd> menu. Semua gambar digambar sendiri di sini — tidak ada aset dari game lain.</p>
+  </div>
+
+  <div class="overlay hidden" id="overlay-done">
+    <h2 id="done-title">Scene selesai!</h2>
+    <p id="done-body"></p>
+    <div class="row">
+      <button class="btn primary" id="btn-next" type="button">Lanjut →</button>
+      <button class="btn" id="btn-replay" type="button">Main lagi dari awal</button>
+    </div>
+  </div>
+</div>
+
+<p id="toast" role="status" aria-live="polite"></p>
+
+<footer>
+  Klik perbedaan di gambar kiri atau kanan · <kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> + <kbd>Enter</kbd> untuk main pakai keyboard ·
+  <kbd>H</kbd> hint · <kbd>M</kbd> kaca pembesar · <kbd>R</kbd> ulangi scene · <kbd>Esc</kbd> menu
+</footer>
+
+<p id="status" role="status" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap"></p>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
